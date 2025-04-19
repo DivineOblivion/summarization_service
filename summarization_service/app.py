@@ -42,6 +42,6 @@ else:
     app.setup()
 
 
-@app.get("/")
+@app.get("/", tags=["Front"])
 def index_page(request: Request):
     return templates.TemplateResponse(request, "index.html")
