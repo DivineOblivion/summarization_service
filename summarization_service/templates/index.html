@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Summarization Service</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            width: 200px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        textarea {
+            width: 100%;
+            height: 300px;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .file-input {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .progress-container {
+            margin-top: 10px;
+            display: none;
+            width: 100%;
+        }
+
+        .progress-bar {
+            width: 100%;
+            background-color: #f1f1f1;
+            border-radius: 5px;
+            margin-bottom: 5px;
+        }
+
+        .progress {
+            height: 20px;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .error .progress {
+            background-color: #f44336;
+        }
+
+        .progress-text {
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .status {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .error-message {
+            color: #f44336;
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #f44336;
+            border-radius: 5px;
+            background-color: #ffebee;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Summarization Service</h1>
+
+        <div class="file-input">
+            <label for="mediaFile">Select Video or Audio File:</label>
+            <input type="file" id="mediaFile" name="mediaFile" accept="video/*,audio/*">
+        </div>
+
+        <button id="processBtn" onclick="processMedia()" disabled>Process Media</button>
+
+        <div id="progressContainer" class="progress-container">
+            <div class="progress-bar">
+                <div id="progressBar" class="progress"></div>
+            </div>
+            <div id="progressText" class="progress-text">0%</div>
+            <div id="status" class="status"></div>
+        </div>
+
+        <div id="errorMessage" class="error-message"></div>
+
+        <label for="resultText">Result Text:</label>
+        <textarea id="resultText" readonly></textarea>
+    </div>
+
+    <script>
+        const mediaFileInput = document.getElementById('mediaFile');
+        const processBtn = document.getElementById('processBtn');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const statusElement = document.getElementById('status');
+        const resultText = document.getElementById('resultText');
+        const errorMessage = document.getElementById('errorMessage');
+
+        mediaFileInput.addEventListener('change', function () {
+            processBtn.disabled = !this.files.length;
+            hideError();
+        });
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            progressContainer.classList.add('error');
+        }
+
+        function hideError() {
+            errorMessage.style.display = 'none';
+            progressContainer.classList.remove('error');
+        }
+
+        async function processMedia() {
+            const file = mediaFileInput.files[0];
+
+            if (!file) {
+                showError('Please select a media file first');
+                return;
+            }
+
+            // Reset UI
+            progressBar.style.width = '0%';
+            progressText.textContent = '0%';
+            statusElement.textContent = '';
+            resultText.value = '';
+            hideError();
+
+            // Show progress container
+            progressContainer.style.display = 'block';
+            processBtn.disabled = true;
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const byteArray = new Uint8Array(arrayBuffer);
+
+                const formData = new FormData();
+                formData.append('file', new Blob([byteArray]), file.name);
+
+                const xhr = new XMLHttpRequest();
+
+                xhr.upload.addEventListener('progress', function (e) {
+                    if (e.lengthComputable) {
+                        const percentComplete = Math.round((e.loaded / e.total) * 100);
+                        progressBar.style.width = percentComplete + '%';
+                        progressText.textContent = percentComplete + '%';
+                        if (percentComplete === 100) {
+                            statusElement.textContent = 'Processing file on server...';
+                        } else {
+                            statusElement.textContent = 'Uploading file...';
+                        }
+                    }
+                });
+
+                xhr.open('POST', '/api/v1/process');
+                xhr.setRequestHeader('X-File-Name', encodeURIComponent(file.name));
+                xhr.setRequestHeader('X-File-Type', file.type);
+                xhr.send(formData);
+
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status === 200) {
+                            resultText.value = xhr.responseText;
+                            statusElement.textContent = 'Processing complete!';
+                        } else {
+                            let errorMsg = 'An error occurred';
+                            if (xhr.statusText) {
+                                errorMsg = `Error ${xhr.status}: ${xhr.statusText}`;
+                            }
+                            showError(errorMsg);
+                            statusElement.textContent = 'Processing failed';
+                        }
+                    }
+                };
+
+            } catch (error) {
+                console.error('Error:', error);
+                showError(`An unexpected error occurred: ${error.message}`);
+                statusElement.textContent = 'Error processing file';
+            } finally {
+                processBtn.disabled = false;
+            }
+        }
+    </script>
+</body>
+
+</html>
