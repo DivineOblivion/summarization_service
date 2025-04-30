@@ -19,7 +19,7 @@ def generate_offline_docs(app: FastAPI, static: os.PathLike[str]):
             title=app.title + " - Swagger UI",
             swagger_js_url="/static/swagger-ui-bundle.js",
             swagger_css_url="/static/swagger-ui.css",
-            swagger_favicon_url="/static/favicon.png",
+            swagger_favicon_url="/static/favicon.ico",
         )
 
     @app.get(app.swagger_ui_oauth2_redirect_url, include_in_schema=False)  # type: ignore[arg-type]
@@ -32,5 +32,5 @@ def generate_offline_docs(app: FastAPI, static: os.PathLike[str]):
             openapi_url=app.openapi_url,  # type: ignore [arg-type]
             title=app.title + " - ReDoc",
             redoc_js_url="/static/redoc.standalone.js",
-            redoc_favicon_url="/static/favicon.png",
+            redoc_favicon_url="/static/favicon.ico",
         )
